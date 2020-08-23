@@ -45,9 +45,7 @@ def get_one_image(seriesuid, file_path, see_image, see_path,markedPICList, clipm
         #如果没有预先设置好的图片列表 则全部mhd生成png图片
         for num in range(ct.shape[0]):
             if see_image: 
-                #如果图片不在标注的列表里 则不生成png图片
-                if './image_png/' + seriesuid + '_' + str(num).zfill(3) + '.png' in markedPICList:
-                    cv2.imwrite(os.path.join(see_path, seriesuid + '_' + str(num).zfill(3) + '.png'), ct[num])
+                cv2.imwrite(os.path.join(see_path, seriesuid + '_' + str(num).zfill(3) + '.png'), ct[num])
     # return ct
     # ct.close()
     return 0

@@ -23,6 +23,9 @@ label_dict['stripe'] = 5
 label_dict['artery'] = 31
 label_dict['lymph'] = 32
 
+
+
+
 def get_file_name(file_path):
     files = []
     for f_name in [f for f in os.listdir(file_path) if f.endswith('.mhd')]:
@@ -73,6 +76,29 @@ def detect_img_lt(clipmin=-1000, clipmax=600):
     yolo.close_session()
 
 
+def letterbox_image(image, size):
+    '''resize image with unchanged aspect ratio using padding'''
+    # print(image.size)
+    iw, ih = image.size
+    w, h = size
+    scale = min(w/iw, h/ih)
+    nw = int(iw*scale)
+    nh = int(ih*scale)
+
+    image = image.resize((nw,nh), Image.BICUBIC)
+    new_image = Image.new('RGB', size, (128,128,128))
+    new_image.paste(image, ((w-nw)//2, (h-nh)//2))
+    # new_image = 0
+    return new_image
+
+def pre_predict_image_process(ctImage):
+    model_image_size = (512,512)
+    boxed_image = letterbox_image(ctImage, tuple(reversed(model_image_size)))
+    image_data = np.array(boxed_image, dtype='float32')
+    image_data /= 255.
+    # image_data = np.expand_dims(image_data, 0)  
+    return image_data
+
 def detect_img_lt_like_annotation(clipmin=-1000, clipmax=600):
     file_paths = ['/home/aistudio/data/data8689/train_part1', '/home/aistudio/data/data8689/train_part2', '/home/aistudio/data/data8689/train_part3', '/home/aistudio/data/data8689/train_part4', 
     '/home/aistudio/data/data8689/train_part5', '/home/aistudio/data/data8689/testA']
@@ -80,12 +106,12 @@ def detect_img_lt_like_annotation(clipmin=-1000, clipmax=600):
                   './predict_result/train_predict_frcnn_cut_part3.csv', './predict_result/train_predict_frcnn_cut_part4.csv',
                   './predict_result/train_predict_frcnn_cut_part5.csv', './predict_result/train_predict_frcnn_cut_testA.csv']
 
+
+    os.chdir('/home/aistudio/work')
     if not os.path.isdir('./predict_result'):
         os.mkdir('./predict_result')
     #加载模型
     #对训练数据fcrnn预测
-
-    os.chdir('/home/aistudio/work')
     model = pdx.load_model('output/faster_rcnn_r50_fpn/epoch_12')
 
     eval_transforms = transforms.Compose([
@@ -104,9 +130,10 @@ def detect_img_lt_like_annotation(clipmin=-1000, clipmax=600):
             ct, origin, spacing = load_itk(current_file)
             ct = ct.clip(min=clipmin, max=clipmax)
             for num in range(ct.shape[0]):
-                image = Image.fromarray(ct[num])
+                image = pre_predict_image_process(Image.fromarray(ct[num]))
                 detect_result = model.predict(image,transforms=eval_transforms)
                 for one_result in detect_result:
+                    # print(one_result)
                     result_probability = one_result['score']
                     result_label = one_result['category']
                     seriesuid.append(result_id)
