@@ -5,6 +5,7 @@ import re
 import numpy as np
 import pandas as pd
 import SimpleITK as sitk
+import cv2
 from tqdm import tqdm
 
 
@@ -130,10 +131,14 @@ def detect_img_lt_like_annotation(clipmin=-1000, clipmax=600):
             ct, origin, spacing = load_itk(current_file)
             ct = ct.clip(min=clipmin, max=clipmax)
             for num in range(ct.shape[0]):
-                image = pre_predict_image_process(Image.fromarray(ct[num]))
+                # image = pre_predict_image_process(Image.fromarray(ct[num]))
+                # image  = np.expand_dims(ct[num], 0)
+                cv2.imwrite('./tempPredictImg.png', ct[num])
+                image = './tempPredictImg.png'
                 detect_result = model.predict(image,transforms=eval_transforms)
+                os.remove('./tempPredictImg.png')
+                # print(detect_result)
                 for one_result in detect_result:
-                    # print(one_result)
                     result_probability = one_result['score']
                     result_label = one_result['category']
                     seriesuid.append(result_id)
