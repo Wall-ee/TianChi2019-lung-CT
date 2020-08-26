@@ -50,23 +50,24 @@ def get_image_and_label(sets=['train_part1'],
                         ):
     images, labels = [], []
     anns_all = pd.read_csv(anns_path)
-    predict_anns_all = pd.read_csv(predict_path[i])
+    # predict_anns_all = pd.read_csv(predict_path[i])
 
     os.chdir('/home/aistudio/work')
     #创建分类图片存储目录
     imageClassSavePath = image_class_save_path + image_type_path
     if not os.path.isdir(imageClassSavePath):
-        os.mkdir(imageClassSavePath)
+        os.makedirs(imageClassSavePath.replace('./',''))
 
     #创建分类目录
-    imgClassName = ['0','1']
+    imgClassName = ['no','yes']
     for name in imgClassName:
         imageClassDetailPath = imageClassSavePath + '/'+name
         if not os.path.isdir(imageClassDetailPath):
-            os.mkdir(imageClassDetailPath)
-
+            # print(imageClassDetailPath)
+            os.makedirs(imageClassDetailPath.replace('./',''))
 
     for i, current_set in enumerate(sets):
+        predict_anns_all = pd.read_csv(predict_path[i])
         from_path = os.path.join(data_path, current_set)
         file_ids = get_file_id(from_path)
         for current_id in tqdm(file_ids):
@@ -90,6 +91,9 @@ def get_image_and_label(sets=['train_part1'],
             # for predict_ann in eval(predict_ann_df['predict_result'].iloc[0]):
                 pre_minX, pre_minY, pre_z, pre_w, pre_h = predict_ann.minX, predict_ann.minY, predict_ann.coordZ, predict_ann.width, predict_ann.height
                 # pre_x, pre_y, pre_z, pre_w, pre_h
+                #预测出来的pre_w  和 pre_h 会大一个像素  减少一下就行
+                # pre_w = pre_w - 1
+                # pre_h = pre_h - 1
                 #计算中心节点坐标
                 pre_x = pre_minX + pre_w * 0.5
                 pre_y = pre_minY + pre_h * 0.5
@@ -105,35 +109,45 @@ def get_image_and_label(sets=['train_part1'],
                         #如果预测的数据中心点  即 0.5*（xmax+xmin） 在手动标记的中间，则认为其标记正确 分类为True
                         if pre_x > x_min and pre_x < x_max and pre_y > y_min and pre_y < y_max:
                             #如果有但凡一个标记正确的 则进行下一个预测标记 的循环
+                            # print(int(h),int(w))
+                            # print(int(y_min),int(y_max), int(x_min),int(x_max))
                             flag = True
                             current_image = ct[int(pre_z)]
                             max_size = int(max(w, h))
                             result_image = np.zeros((max_size, max_size))
+
                             result_image[0:int(h), 0:int(w)] = current_image[int(y_min):int(y_max), int(x_min):int(x_max)]
                             result_image = cv2.resize(result_image, (target_size, target_size))
                             # 训练时候会进行normalize  现在不用处理
                             # result_image = normalize(result_image)
-                            cv2.imwrite(imageClassSavePath +'/1/' + str(current_id) + '_' + str(kk).zfill(3)+ '.png', result_image)
+                            cv2.imwrite(imageClassSavePath +'/yes/' + str(current_id) + '_' + str(kk).zfill(3)+ '.png', result_image)
 
-                            images.append('1/'+ str(current_id) + '_' + str(kk).zfill(3)+ '.png')
-                            labels.append(1)
+                            # images.append('1/'+ str(current_id) + '_' + str(kk).zfill(3)+ '.png')
+                            # labels.append(1)
                             # images.append(result_image)
                             # labels.append(flag)
                             break
                 #循环完成 说明没有一个人为标记符合
-                if flag == False:
+                if flag is False:
                     current_image = ct[int(pre_z)]
                     w, h = int(pre_w), int(pre_h)
-                    pre_x_min, pre_x_max = int(pre_x - pre_w / 2), int(pre_x + pre_w / 2)
-                    pre_y_min, pre_y_max = int(pre_y - pre_h / 2), int(pre_y + pre_h / 2)
+                    # pre_x_min, pre_x_max = int(pre_x - pre_w / 2), int(pre_x + pre_w / 2)
+                    # pre_y_min, pre_y_max = int(pre_y - pre_h / 2), int(pre_y + pre_h / 2)
+                    pre_x_min = int(pre_minX)
+                    pre_x_max = int(pre_minX) + int(pre_w)
+                    pre_y_min = int(pre_minY)
+                    pre_y_max = int(pre_minY) + int(pre_h)
+                    # print(int(h),int(w))
+                    # print(int(pre_y_min),int(pre_y_max), int(pre_x_min),int(pre_x_max))
                     max_size = int(max(w, h))
                     result_image = np.zeros((max_size, max_size))
                     result_image[0:int(h), 0:int(w)] = current_image[pre_y_min:pre_y_max, pre_x_min:pre_x_max]
                     result_image = cv2.resize(result_image, (target_size, target_size))
+                    result_image = np.asarray(result_image).astype(np.float32)
                     # result_image = normalize(result_image)
-                    cv2.imwrite(imageClassSavePath +'/0/' + str(current_id) + '_' + str(kk).zfill(3)+ '.png', result_image)
-                    images.append('0/'+ str(current_id) + '_' + str(kk).zfill(3)+ '.png')
-                    labels.append(0)
+                    cv2.imwrite(imageClassSavePath +'/no/' + str(current_id) + '_' + str(kk).zfill(3)+ '.png', result_image)
+                    # images.append('0/'+ str(current_id) + '_' + str(kk).zfill(3)+ '.png')
+                    # labels.append(0)
                     # images.append(result_image)
                     # labels.append(flag)
                 
@@ -141,13 +155,23 @@ def get_image_and_label(sets=['train_part1'],
 
     # images = np.asarray(images)
     # labels = np.asarray(labels)
-    trainFile = open(imageClassSavePath + '/'+ output_file_path,'w')
-    for i in range(len(images)):
-        trainFile.write(str(images[i])+ ' ' + str(labels) + '\n')
+    # trainFile = open(imageClassSavePath + '/'+ output_file_path,'w')
+    # for i in range(len(images)):
+    #     trainFile.write(str(images[i])+ ' ' + str(labels) + '\n')
+    # trainFile.close()
+    os.chdir(imageClassSavePath)
+    wrongFileList= os.listdir('./no')
+    wrongFileList = list(map(lambda x:'no/'+x+ ' no',wrongFileList))
+    trainFile = open(output_file_path,'w')
+    trainFile.write('\n'.join(wrongFileList))
+    trainFile.write('\n')
+    rightFileList = os.listdir('./yes')
+    rightFileList = list(map(lambda x:'yes/'+x+ ' yes',rightFileList))
+    trainFile.write('\n'.join(rightFileList))
     trainFile.close()
     f = open(imageClassSavePath + '/labels.txt','w')
-    f.write('0\n')
-    f.write('1\n')
+    f.write('no\n')
+    f.write('yes\n')
     f.close()
     # return np.reshape(images, (images.shape[0], images.shape[1], images.shape[2], 1)), np.reshape(labels, (labels.shape[0], 1))
 
