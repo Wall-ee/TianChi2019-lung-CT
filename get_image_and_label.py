@@ -169,7 +169,9 @@ def get_image_and_label(sets=['train_part1'],
     rightFileList = list(map(lambda x:'yes/'+x+ ' yes',rightFileList))
     trainFile.write('\n'.join(rightFileList))
     trainFile.close()
-    f = open(imageClassSavePath + '/labels.txt','w')
+
+    # os.makedirs(imageClassSavePath + '/labels.txt')
+    f = open('labels.txt','w')
     f.write('no\n')
     f.write('yes\n')
     f.close()
