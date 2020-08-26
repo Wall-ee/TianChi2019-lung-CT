@@ -7,14 +7,19 @@ import os
 import sys
 sys.path.append('/home/aistudio/external-libraries')
 # 设置使用0号GPU卡（如无GPU，执行此代码后仍然会使用CPU训练模型）
-import matplotlib
-matplotlib.use('Agg') 
-import os
-os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+import SimpleITK as sitk
+import pandas as pd
+import matplotlib.pyplot as plt
+import cv2
+import math
+from tqdm import tqdm
 import paddlex as pdx
 os.chdir('/home/aistudio/work')
+
+# matplotlib.use('Agg') 
+os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 #图像增强
-from paddlex.det import transforms
+from paddlex.cls import transforms
 train_transforms = transforms.Compose([
     transforms.RandomHorizontalFlip(),
     transforms.Normalize()
@@ -54,13 +59,13 @@ def load_itk(file):
 
 def _main():
     # model = load_model('./saved_models/trained_weights_final_ResNet.h5')
-    model = pdx.load_model('resnet_output/resnet_50/epoch_200')
+    model = pdx.load_model('resnet_output/resnet_50/best_model')
     # model.summary()
     predict_path = './predict_result/train_predict_frcnn_cut_testA.csv'
     data_path = '/home/aistudio/data/data8689/testA'
     predict_anns_all = pd.read_csv(predict_path)
     target_size = 64
-    save_name = './predict_result/train_predict_frcnn_testA_ResNet.csv'
+    save_name = './predict_result/test_file_final_predict_frcnn_testA_ResNet.csv'
     seriesuid, coordX, coordY, coordZ, class_label, probability = [], [], [], [], [], []
 
     file_ids = get_file_id(data_path)
@@ -78,8 +83,13 @@ def _main():
             current_image = ct[int(pre_z)]
 
             w, h = int(pre_w), int(pre_h)
-            pre_x_min, pre_x_max = int(pre_x - pre_w / 2), int(pre_x + pre_w / 2)
-            pre_y_min, pre_y_max = int(pre_y - pre_h / 2), int(pre_y + pre_h / 2)
+            # pre_x_min, pre_x_max = int(pre_x - pre_w / 2), int(pre_x + pre_w / 2)
+            # pre_y_min, pre_y_max = int(pre_y - pre_h / 2), int(pre_y + pre_h / 2)
+            pre_x_min = int(pre_minX)
+            pre_x_max = int(pre_minX) + int(pre_w)
+            pre_y_min = int(pre_minY)
+            pre_y_max = int(pre_minY) + int(pre_h)
+
             if w > target_size or h > target_size:
                 max_size = int(max(w, h))
                 result_image = np.zeros((max_size, max_size))
@@ -92,8 +102,11 @@ def _main():
                                                   int((target_size - w) / 2), math.ceil((target_size - w) / 2),
                                                   cv2.BORDER_CONSTANT, value=0)
             # result_image = normalize(result_image)
-
-            predict_image = model.predict(result_image[np.newaxis, ::, ::],transforms=eval_transforms)
+            cv2.imwrite('./tempPredictResNetImg.png', result_image)
+            temp_image = './tempPredictResNetImg.png'
+            detect_result = model.predict(temp_image,transforms=eval_transforms)
+            os.remove('./tempPredictResNetImg.png')
+            # predict_image = model.predict(result_image[np.newaxis, ::, ::],transforms=eval_transforms)
 
             # predict_image = model.predict(result_image[np.newaxis, ::, ::, np.newaxis])
             # print(predict_image, current_id, pre_x, pre_y, pre_z)

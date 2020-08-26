@@ -15,7 +15,7 @@ import paddlex as pdx
 os.chdir('/home/aistudio/work')
 
 #图像增强
-from paddlex.det import transforms
+from paddlex.cls import transforms
 train_transforms = transforms.Compose([
     transforms.RandomHorizontalFlip(),
     transforms.Normalize()
@@ -27,40 +27,40 @@ eval_transforms = transforms.Compose([
 
 train_dataset = pdx.datasets.ImageNet(
     data_dir='/home/aistudio/work/image_class/train',
-    file_list='./train_list.txt',
-    label_list='./labels.txt',
+    file_list='/home/aistudio/work/image_class/train/train_list.txt',
+    label_list='/home/aistudio/work/image_class/train/labels.txt',
     transforms=train_transforms,
     shuffle=True)
 
 eval_dataset = pdx.datasets.ImageNet(
     data_dir='/home/aistudio/work/image_class/val',
-    file_list='./val_list.txt',
-    label_list='./labels.txt',
+    file_list='/home/aistudio/work/image_class/val/val_list.txt',
+    label_list='/home/aistudio/work/image_class/val/labels.txt',
     transforms=eval_transforms)
 
 # 如果要通过VisualDL查看日志页面，下没按这行代码需要执行
 # aistudio上需要将日志输出到/home/aistudio/log目录下才可以查看VisuaDL界面
-! rm -rf ~/log & rm -rf resnet_output/resnet_50
-! mkdir -p resnet_output/resnet_50/vdl_log
-! ln -s resnet_output/resnet_50/vdl_log ~/log
+# ! rm -rf ~/log & rm -rf resnet_output/resnet_50
+# ! mkdir -p resnet_output/resnet_50/vdl_log
+# ! ln -s resnet_output/resnet_50/vdl_log ~/log
 
 # num_classes = len(train_dataset.labels) + 1
 model = pdx.cls.ResNet50(num_classes=2)
 model.train(
-    num_epochs=200,
+    num_epochs=50,
     train_dataset=train_dataset,
-    train_batch_size=32,
+    train_batch_size=128,
     eval_dataset=eval_dataset, 
     learning_rate=0.5e-6,
     # lr_decay_epochs=[8, 11],
-    save_interval_epochs=1,
+    save_interval_epochs=10,
     save_dir='resnet_output/resnet_50',
     use_vdl=True)
 
+
 # Score trained model.
-scores = model.evaluate(eval_dataset, verbose=1)
-for key in scores.keys():
-    print('Val Result is {} : {}'.format(str(key),str(scores[key])))
+scores = model.evaluate(eval_dataset)
+print('model score is ',scores)
 # print('Test loss:', scores[0])
 # print('Test accuracy:', scores[1])
 # 0.5e-6
