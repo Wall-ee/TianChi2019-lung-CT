@@ -61,6 +61,11 @@ model.train(
 # Score trained model.
 scores = model.evaluate(eval_dataset)
 print('model score is ',scores)
+
+# 2020-08-26 21:38:25 [INFO]	Start to evaluating(total_samples=183023, total_steps=183023)...
+# 100%|██████████| 183023/183023 [24:29<00:00, 124.55it/s]
+# model score is  OrderedDict([('acc1', 0.9503067920425302), ('acc2', 1.0)])
+
 # print('Test loss:', scores[0])
 # print('Test accuracy:', scores[1])
 # 0.5e-6

@@ -16,6 +16,8 @@ from tqdm import tqdm
 import paddlex as pdx
 os.chdir('/home/aistudio/work')
 
+import matplotlib
+matplotlib.use('Agg') 
 # matplotlib.use('Agg') 
 os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 #图像增强
@@ -57,7 +59,7 @@ def load_itk(file):
     return ct_scan, origin, spacing
 
 
-def _main():
+def DoResnetPredict():
     # model = load_model('./saved_models/trained_weights_final_ResNet.h5')
     model = pdx.load_model('resnet_output/resnet_50/best_model')
     # model.summary()
@@ -74,7 +76,7 @@ def _main():
         ct, origin, spacing = load_itk(current_file)
         predict_ann_df = predict_anns_all.query('seriesuid == "%s"' % current_id).copy()
 
-        for _, predict_ann in predict_ann_df.iterrows():
+        for _, predict_ann in tqdm(predict_ann_df.iterrows()):
             # pre_x, pre_y, pre_z, pre_w, pre_h = predict_ann.coordX, predict_ann.coordY, predict_ann.coordZ, predict_ann.diameterX, predict_ann.diameterY
             pre_minX, pre_minY, pre_z, pre_w, pre_h = predict_ann.minX, predict_ann.minY, predict_ann.coordZ, predict_ann.width, predict_ann.height
             #计算中心节点坐标
@@ -104,8 +106,9 @@ def _main():
             # result_image = normalize(result_image)
             cv2.imwrite('./tempPredictResNetImg.png', result_image)
             temp_image = './tempPredictResNetImg.png'
-            detect_result = model.predict(temp_image,transforms=eval_transforms)
+            predict_image = model.predict(temp_image,transforms=eval_transforms)
             os.remove('./tempPredictResNetImg.png')
+            # [{'category_id': 0, 'category': 'no', 'score': 0.95524794}]
             # predict_image = model.predict(result_image[np.newaxis, ::, ::],transforms=eval_transforms)
 
             # predict_image = model.predict(result_image[np.newaxis, ::, ::, np.newaxis])
@@ -123,19 +126,53 @@ def _main():
             #     coordZ.append(pre_z * spacing[0] + origin[0])
             #     class_label.append(int(predict_ann.label))
             #     probability.append(predict_ann.probability)
-
+            # if predict_image[0]['category_id'] ==0:
+            #     (1- predict_image[0]['score'])+ predict_ann.probability + 0.5 - predict_image[0]['score'] > 0:
+            # # if predict_image[0][1] + predict_ann.probability + 0.5 - predict_image[0][0] > 0:
+            #         seriesuid.append(int(current_id))
+            #         coordX.append(pre_x * spacing[2] + origin[2])
+            #         coordY.append(pre_y * spacing[1] + origin[1])
+            #         coordZ.append(pre_z * spacing[0] + origin[0])
+            #         class_label.append(int(predict_ann.label))
+            #         probability.append(predict_ann.probability)
+            # else:
+            #     (predict_image[0]['score'])+ predict_ann.probability + 0.5 - (1-predict_image[0]['score']) > 0:
+            # # if predict_image[0][1] + predict_ann.probability + 0.5 - predict_image[0][0] > 0:
+            #         seriesuid.append(int(current_id))
+            #         coordX.append(pre_x * spacing[2] + origin[2])
+            #         coordY.append(pre_y * spacing[1] + origin[1])
+            #         coordZ.append(pre_z * spacing[0] + origin[0])
+            #         class_label.append(int(predict_ann.label))
+            #         probability.append(predict_ann.probability)
+            if predict_image[0]['category_id'] ==0:
+                if predict_ann.probability >=0.7 and predict_image[0]['score']<= 0.9:
+                    seriesuid.append(int(current_id))
+                    coordX.append(pre_x * spacing[2] + origin[2])
+                    coordY.append(pre_y * spacing[1] + origin[1])
+                    coordZ.append(pre_z * spacing[0] + origin[0])
+                    class_label.append(predict_ann.label)
+                    probability.append(predict_ann.probability)
+            else:
+                if predict_ann.probability >=0.7 and predict_image[0]['score'] >= 0.9:
+            # if predict_image[0][1] + predict_ann.probability + 0.5 - predict_image[0][0] > 0:
+                    seriesuid.append(int(current_id))
+                    coordX.append(pre_x * spacing[2] + origin[2])
+                    coordY.append(pre_y * spacing[1] + origin[1])
+                    coordZ.append(pre_z * spacing[0] + origin[0])
+                    class_label.append(predict_ann.label)
+                    probability.append(predict_ann.probability)
             #如果真阳性概率大于0.5 并且  预测概率大于0.5  最终确认
             # for aa in predict_image[0]
             # if predict_image[0]['category_id'] == 1:
             #     if 
 
             # if predict_image[0][1] + predict_ann.probability + 0.5 - predict_image[0][0] > 0:
-            seriesuid.append(int(current_id))
-            coordX.append(pre_x * spacing[2] + origin[2])
-            coordY.append(pre_y * spacing[1] + origin[1])
-            coordZ.append(pre_z * spacing[0] + origin[0])
-            class_label.append(int(predict_ann.label))
-            probability.append(predict_ann.probability)
+            # seriesuid.append(int(current_id))
+            # coordX.append(pre_x * spacing[2] + origin[2])
+            # coordY.append(pre_y * spacing[1] + origin[1])
+            # coordZ.append(pre_z * spacing[0] + origin[0])
+            # class_label.append(int(predict_ann.label))
+            # probability.append(predict_ann.probability)
 
 
     dataframe = pd.DataFrame({'seriesuid': seriesuid, 'coordX': coordX, 'coordY': coordY, 'coordZ': coordZ, 'class': class_label, 'probability': probability})
@@ -144,4 +181,4 @@ def _main():
 
 
 if __name__ == '__main__':
-    _main()
+    DoResnetPredict()
