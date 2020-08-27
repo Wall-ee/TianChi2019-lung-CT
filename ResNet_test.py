@@ -9,11 +9,12 @@ sys.path.append('/home/aistudio/external-libraries')
 # 设置使用0号GPU卡（如无GPU，执行此代码后仍然会使用CPU训练模型）
 import SimpleITK as sitk
 import pandas as pd
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 import cv2
 import math
 from tqdm import tqdm
 import paddlex as pdx
+import json
 os.chdir('/home/aistudio/work')
 
 import matplotlib
@@ -67,21 +68,23 @@ def DoResnetPredict():
     data_path = '/home/aistudio/data/data8689/testA'
     predict_anns_all = pd.read_csv(predict_path)
     target_size = 64
-    save_name = './predict_result/test_file_final_predict_frcnn_testA_ResNet.csv'
-    seriesuid, coordX, coordY, coordZ, class_label, probability = [], [], [], [], [], []
-
+    save_name = './predict_result/test_file_final_predict_frcnn_testA_ResNet1.csv'
+    # seriesuid, coordX, coordY, coordZ, class_label, probability = [], [], [], [], [], []
+    seriesuid, minX, minY, coordZ, width, height, label, probability = [], [], [], [], [], [], [], []
+    trueProb = []
     file_ids = get_file_id(data_path)
     for current_id in tqdm(file_ids):
         current_file = os.path.join(data_path, current_id + '.mhd')
         ct, origin, spacing = load_itk(current_file)
         predict_ann_df = predict_anns_all.query('seriesuid == "%s"' % current_id).copy()
 
-        for _, predict_ann in tqdm(predict_ann_df.iterrows()):
+        # for _, predict_ann in tqdm(predict_ann_df.iterrows()):
+        for _, predict_ann in predict_ann_df.iterrows():
             # pre_x, pre_y, pre_z, pre_w, pre_h = predict_ann.coordX, predict_ann.coordY, predict_ann.coordZ, predict_ann.diameterX, predict_ann.diameterY
             pre_minX, pre_minY, pre_z, pre_w, pre_h = predict_ann.minX, predict_ann.minY, predict_ann.coordZ, predict_ann.width, predict_ann.height
             #计算中心节点坐标
-            pre_x = pre_minX + pre_w * 0.5
-            pre_y = pre_minY + pre_h * 0.5
+            # pre_x = pre_minX + pre_w * 0.5
+            # pre_y = pre_minY + pre_h * 0.5
             current_image = ct[int(pre_z)]
 
             w, h = int(pre_w), int(pre_h)
@@ -147,19 +150,33 @@ def DoResnetPredict():
             if predict_image[0]['category_id'] ==0:
                 if predict_ann.probability >=0.7 and predict_image[0]['score']<= 0.9:
                     seriesuid.append(int(current_id))
-                    coordX.append(pre_x * spacing[2] + origin[2])
-                    coordY.append(pre_y * spacing[1] + origin[1])
-                    coordZ.append(pre_z * spacing[0] + origin[0])
-                    class_label.append(predict_ann.label)
+                    # coordX.append(p re_x * spacing[2] + origin[2])
+                    # coordY.append(pre_y * spacing[1] + origin[1])
+                    # coordZ.append(pre_z * spacing[0] + origin[0])
+                    minX.append(predict_ann.minX)
+                    minY.append(predict_ann.minY)
+                    coordZ.append(int(pre_z))
+                    width.append(predict_ann.width) 
+                    height.append(predict_ann.height)
+                    label.append(predict_ann.label)
+                    trueProb.append(predict_image[0])
                     probability.append(predict_ann.probability)
             else:
                 if predict_ann.probability >=0.7 and predict_image[0]['score'] >= 0.9:
             # if predict_image[0][1] + predict_ann.probability + 0.5 - predict_image[0][0] > 0:
                     seriesuid.append(int(current_id))
-                    coordX.append(pre_x * spacing[2] + origin[2])
-                    coordY.append(pre_y * spacing[1] + origin[1])
-                    coordZ.append(pre_z * spacing[0] + origin[0])
-                    class_label.append(predict_ann.label)
+                    # coordX.append(pre_x * spacing[2] + origin[2])
+                    # coordY.append(pre_y * spacing[1] + origin[1])
+                    # coordZ.append(pre_z * spacing[0] + origin[0])
+                    # label.append(predict_ann.label)
+                    # probability.append(predict_ann.probability)
+                    minX.append(predict_ann.minX)
+                    minY.append(predict_ann.minY)
+                    coordZ.append(int(pre_z))
+                    width.append(predict_ann.width) 
+                    height.append(predict_ann.height)
+                    label.append(predict_ann.label)
+                    trueProb.append(predict_image[0])
                     probability.append(predict_ann.probability)
             #如果真阳性概率大于0.5 并且  预测概率大于0.5  最终确认
             # for aa in predict_image[0]
@@ -175,9 +192,17 @@ def DoResnetPredict():
             # probability.append(predict_ann.probability)
 
 
-    dataframe = pd.DataFrame({'seriesuid': seriesuid, 'coordX': coordX, 'coordY': coordY, 'coordZ': coordZ, 'class': class_label, 'probability': probability})
-    columns = ['seriesuid', 'coordX', 'coordY', 'coordZ', 'class', 'probability']
+    # dataframe = pd.DataFrame({'seriesuid': seriesuid, 'coordX': coordX, 'coordY': coordY, 'coordZ': coordZ, 'class': class_label, 'probability': probability})
+    # columns = ['seriesuid', 'coordX', 'coordY', 'coordZ', 'class', 'probability']
+    # dataframe.to_csv(save_name, index=False, sep=',', columns=columns)
+
+    dataframe = pd.DataFrame({'seriesuid': seriesuid, 'minX': minX, 'minY': minY, 'coordZ': coordZ,
+                            'width': width, 'height': height,'label': label, 'probability': probability})
+    columns = ['seriesuid', 'minX', 'minY', 'coordZ', 'width', 'height', 'label', 'probability']
     dataframe.to_csv(save_name, index=False, sep=',', columns=columns)
+    f=open('./predict_result/trueProb.txt','w')
+    f.write('\n'.join(list(map(lambda x:json.dumps(x),trueProb))))
+    f.close()
 
 
 if __name__ == '__main__':
