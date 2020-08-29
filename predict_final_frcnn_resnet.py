@@ -142,6 +142,7 @@ def resnet_predict(fileName,temp_rcnn_predict_file,origin_predict_file,
 
     seriesuid, minX, minY, coordZ, width, height, label, probability = [], [], [], [], [], [], [], []
     trueProb = []
+    # origin_resnet_result_for_draw = pd.DataFrame()
     origin_resnet_result_for_draw = []
     origin_resnetDF = pd.read_csv(output_path+origin_predict_file)
 
@@ -157,6 +158,7 @@ def resnet_predict(fileName,temp_rcnn_predict_file,origin_predict_file,
     ct = ct.clip(min=clipmin, max=clipmax)
     predict_ann_df = predict_anns_all.query('seriesuid == "%s"' % current_id).copy()
 
+    kk = 0
     for _, predict_ann in tqdm(predict_ann_df.iterrows()):
     # for _,predict_ann in tqdm(predict_ann_df):
         pre_minX, pre_minY, pre_z, pre_w, pre_h = predict_ann.minX, predict_ann.minY, predict_ann.coordZ, predict_ann.width, predict_ann.height
@@ -188,8 +190,7 @@ def resnet_predict(fileName,temp_rcnn_predict_file,origin_predict_file,
         if predict_image[0]['category_id'] ==0:
             #如果frcnn预测结果大于0.7 并且假阳性False概率小于90% 则认为最终结果
             if predict_ann.probability >=0.7 and predict_image[0]['score']<= 0.9:
-                print('yes')
-                seriesuid.append(int(current_id))
+                seriesuid.append(current_id)
                 minX.append(predict_ann.minX)
                 minY.append(predict_ann.minY)
                 coordZ.append(int(pre_z))
@@ -199,15 +200,17 @@ def resnet_predict(fileName,temp_rcnn_predict_file,origin_predict_file,
                 trueProb.append(predict_image[0])
                 probability.append(predict_ann.probability)
                 #将原始的预测格式存储，以便画图
-                origin_predict_result_temp = origin_resnetDF.query('diameterZ == "%s"' % int(pre_z)).copy()
+                # origin_predict_result_temp = origin_resnetDF.query('diameterZ == "%s"' % int(pre_z)).copy()
+                # origin_predict_result_temp = origin_resnetDF.iloc[kk].copy()
                 # print(predict_ann_df)
                 # print(predict_ann_df['predict_result'])
-                origin_resnet_result_for_draw.append(origin_predict_result_temp)
+                # origin_resnet_result_for_draw.append(origin_predict_result_temp)
+                origin_resnet_result_for_draw.append(int(kk))
 
         else:
             #如果frcnn预测结果大于0.7 并且假阳性True概率大于90% 则认为最终结果
             if predict_ann.probability >=0.7 and predict_image[0]['score'] >= 0.9:
-                seriesuid.append(int(current_id))
+                seriesuid.append(current_id)
                 minX.append(predict_ann.minX)
                 minY.append(predict_ann.minY)
                 coordZ.append(int(pre_z))
@@ -217,10 +220,13 @@ def resnet_predict(fileName,temp_rcnn_predict_file,origin_predict_file,
                 trueProb.append(predict_image[0])
                 probability.append(predict_ann.probability)
                 #将原始的预测格式存储，以便画图
-                origin_predict_result_temp = origin_resnetDF.query('diameterZ == "%s"' % int(pre_z)).copy()
+                # origin_predict_result_temp = origin_resnetDF.query('diameterZ == "%s"' % int(pre_z)).copy()
+                # origin_predict_result_temp = origin_resnetDF.iloc[kk].copy()
                 # print(predict_ann_df)
                 # print(predict_ann_df['predict_result'])
-                origin_resnet_result_for_draw.append(origin_predict_result_temp)
+                # origin_resnet_result_for_draw.append(origin_predict_result_temp)
+                origin_resnet_result_for_draw.append(int(kk))
+        kk = kk + 1
 
 
     dataframe = pd.DataFrame({'seriesuid': seriesuid, 'minX': minX, 'minY': minY, 'coordZ': coordZ,
@@ -232,7 +238,9 @@ def resnet_predict(fileName,temp_rcnn_predict_file,origin_predict_file,
     dataframe.to_csv(final_save_name, index=False, sep=',', columns=columns)
 
     #存储最终的画图结果
-    testFCRNNPredictResultDF = pd.DataFrame(origin_resnet_result_for_draw)
+    # print(origin_resnet_result_for_draw)
+    # origin_resnet_result_for_draw = origin_resnetDF[origin_resnetDF.index in origin_resnet_result_for_draw]
+    testFCRNNPredictResultDF = pd.DataFrame(origin_resnetDF.iloc[origin_resnet_result_for_draw])
     testFCRNNPredictResultDF.to_csv(origin_final_save_name)
     #画图
     # for i in range(origin_resnet_result_for_draw.__len__()):
@@ -249,12 +257,16 @@ def drawPredictPic(fileName,origin_final_save_name,output_path='./predict_result
     ct, origin, spacing = load_itk(fileName)
     ct = ct.clip(min=clipmin, max=clipmax)
     #画图
-    for i in range(origin_resnet_result_for_draw.__len__()):
-        # origin_resnet_result_for_draw
-        tempPredictPNGName = output_path+'tempPNG'+str(i)+'.png'
-        cv2.imwrite(tempPredictPNGName, ct[int(origin_resnet_result_for_draw['diameterZ'][0])])
-        # os.remove('./tempPredictImg.png')
-        pdx.det.visualize(tempPredictPNGName, origin_resnet_result_for_draw[i], threshold=0.5,save_dir=output_path)
+    for name,group in origin_resnet_result_for_draw.groupby('diameterZ'):
+        # print(group)
+        # break
+        predict_result_list = list(group['predict_result'].apply(lambda x: eval(x)))
+        # print(predict_result_list)
+        tempPredictPNGName = output_path+'tempPNG'+str(name)+'.png'
+        cv2.imwrite(tempPredictPNGName, ct[int(name)])
+        # os.remove(tempPredictPNGName)
+        pdx.det.visualize(tempPredictPNGName, predict_result_list,threshold=0.5,save_dir=output_path)
+        os.remove(tempPredictPNGName)
     return 0 
 
 if __name__ == '__main__':
