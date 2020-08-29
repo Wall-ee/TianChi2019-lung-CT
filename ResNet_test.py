@@ -200,9 +200,6 @@ def DoResnetPredict():
                             'width': width, 'height': height,'label': label, 'probability': probability})
     columns = ['seriesuid', 'minX', 'minY', 'coordZ', 'width', 'height', 'label', 'probability']
     dataframe.to_csv(save_name, index=False, sep=',', columns=columns)
-    # f=open('./predict_result/trueProb.txt','w')
-    # f.write('\n'.join(list(map(lambda x:json.dumps(x),trueProb))))
-    # f.close()
     dataframe['trueType'] = list(map(lambda x:x.get('category'),trueProb))
     dataframe['trueProb'] = list(map(lambda x:float(x.get('score')),trueProb))
     dataframe.to_csv(save_name, index=False, sep=',', columns=columns)
