@@ -69,7 +69,10 @@ def pre_predict_image_process(ctImage):
     # image_data = np.expand_dims(image_data, 0)  
     return image_data
 
-def frcnn_predict(fileName,output_path = './predict_result/',clipmin=-1000, clipmax=600):
+def frcnn_predict(fileName,output_path = './predict_result/',
+                    save_name = 'temp_frcnn_predict_result.txt',
+                    origin_save_name = 'origin_predict_result.txt',
+                     clipmin=-1000, clipmax=600):
     # os.chdir('/home/aistudio/work')
     if not os.path.isdir(output_path):
         os.mkdir(output_path)
@@ -81,8 +84,8 @@ def frcnn_predict(fileName,output_path = './predict_result/',clipmin=-1000, clip
         detTransforms.Normalize()
     ])
 
-    save_name = 'temp_frcnn_predict_result.txt'
-    origin_save_name = 'origin_predict_result.txt'
+    # save_name = 'temp_frcnn_predict_result.txt'
+    # origin_save_name = 'origin_predict_result.txt'
     origin_predict_result = []
     # file_path = './predict_result'
     seriesuid, minX, minY, coordZ, width, height, diameterZ, label, probability = [], [], [], [], [], [], [], [], []
@@ -129,6 +132,8 @@ model1 = pdx.load_model('resnet_output/resnet_50/best_model')
 
 def resnet_predict(fileName,temp_rcnn_predict_file,origin_predict_file,
                     output_path = './predict_result/',
+                    final_save_file_name = 'final_predict_frcnn_ResNet.txt',
+                    origin_final_save_file_name = 'final_origin_frcnn_ResNet.txt',
                     clipmin=-1000, clipmax=600):
     #对结果进行假阳性预判
     # #加载resnet 模型
@@ -137,8 +142,10 @@ def resnet_predict(fileName,temp_rcnn_predict_file,origin_predict_file,
     predict_path = temp_rcnn_predict_file
     predict_anns_all = pd.read_csv(output_path+predict_path)
     target_size = 64
-    final_save_name = output_path + 'final_predict_frcnn_ResNet.txt'
-    origin_final_save_name = output_path + 'final_origin_frcnn_ResNet.txt'
+    # final_save_name = output_path + 'final_predict_frcnn_ResNet.txt'
+    # origin_final_save_name = output_path + 'final_origin_frcnn_ResNet.txt'
+    final_save_name = output_path + final_save_file_name
+    origin_final_save_name = output_path + origin_final_save_file_name
 
     seriesuid, minX, minY, coordZ, width, height, label, probability = [], [], [], [], [], [], [], []
     trueProb = []
@@ -252,7 +259,10 @@ def resnet_predict(fileName,temp_rcnn_predict_file,origin_predict_file,
     return 0 
 
 
-def drawPredictPic(fileName,origin_final_save_name,output_path='./predict_result/',clipmin=-1000, clipmax=600):
+def drawPredictPic(fileName,
+                origin_final_save_name='final_origin_frcnn_ResNet.txt',
+                output_path='./predict_result/',
+                clipmin=-1000, clipmax=600):
     origin_resnet_result_for_draw= pd.read_csv(output_path+origin_final_save_name)
     ct, origin, spacing = load_itk(fileName)
     ct = ct.clip(min=clipmin, max=clipmax)
